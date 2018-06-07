@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<title></title>
+
+<script src="./node_modules/crypto-js/crypto-js.js"></script>
+<script src="./node_modules/ingresse-sdk/dist/browser/ingresse-sdk.js"></script>
+<script>
+
+  var Sdk = require('ingresse-sdk');
+  var ingresse = new Sdk();
+
+  var publicKey = "";
+  var privateKey = "";
+  var returnUrl = "";
+
+  ingresse.api.auth.setPrivateKey(privateKey);
+  ingresse.api.auth.setPublicKey(publicKey);
+
+  function signature(publicKey, privateKey) {
+    var timestamp = new Date().toJSON().replace(/\.\d+/, '');
+    var sha1      = CryptoJS.HmacSHA1(publicKey + timestamp, privateKey);
+    var signature = sha1.toString(CryptoJS.enc.Base64);
+
+    return '&publickey=' + encodeURIComponent(publicKey) + '&signature=' + encodeURIComponent(signature) + '&timestamp=' + encodeURIComponent(timestamp);
+  }
+
+  function signin() {
+    var url = "https://www.ingresse.com/login?returnUrl=" + returnUrl;
+
+    url = url + signature(publicKey, privateKey)
+
+    location.href = url;
+  }
+
+  function getUserInfo()
+  {
+    var url_string = window.location.href;
+    var url = new URL(url_string);
+    var token = url.searchParams.get("usertoken");
+
+    if (!token)
+    {
+      window.alert('You are not logged. Use login before.');
+      return;
+    }
+
+    // Token has this format: "{userId}-{random}", so, we need the user ID
+    var splittedToken = token.split("-");
+    userId = splittedToken[0];
+
+    ingresse.api.getUser(userId, {usertoken:token})
+      .then(function (response) {
+        var userInfo = document.getElementById("userInfo");
+        userInfo.textContent = 'Logged user: ' + response.responseData.name + ' ' + response.responseData.lastName;
+      }).catch(function (error) {
+        console.log(error);
+      });
+  }
+
+</script>
+</head>
+<body>
+  <div>
+    <button type="button" onclick="signin()">Login Ingresse</button>
+    <button type="button" onclick="getUserInfo()">Get User Info</button>
+
+    <div id="userInfo"></div>
+  </div>
+</body>
+</html>
